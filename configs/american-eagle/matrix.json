@@ -1,0 +1,65 @@
+{
+  "type": "matrix",
+  "data": {
+    "datasets": [{
+      "label": "lululemon",
+      "data": [
+        { "x": "Leggings", "y": "lululemon", "v": 56 },
+        { "x": "Shorts",   "y": "lululemon", "v": 78 },
+        { "x": "Pants",    "y": "lululemon", "v": 47 },
+        { "x": "Bags",     "y": "lululemon", "v": 79 },
+        { "x": "Jackets",  "y": "lululemon", "v": 69 },
+        { "x": "Shirts",   "y": "lululemon", "v": 58 },
+        { "x": "Shoes",    "y": "lululemon", "v": 70 },
+        { "x": "Yoga Mats","y": "lululemon", "v": 74 },
+        { "x": "Tank Tops","y": "lululemon", "v": 76 },
+        { "x": "Hats",     "y": "lululemon", "v": 84 }
+      ],
+      "backgroundColor": "function(ctx) { const v = ctx.raw.v; const scale = ctx.chart.scales.color; return scale.getColorForValue(v); }",
+      "width": "function(ctx) { return ctx.chart.scales.x.getPixelForTick(1) - ctx.chart.scales.x.getPixelForTick(0) - 4; }",
+      "height": "function(ctx) { return ctx.chart.scales.y.getPixelForTick(1) - ctx.chart.scales.y.getPixelForTick(0) - 4; }"
+    }]
+  },
+  "options": {
+    "plugins": {
+      "legend": { "display": false },
+      "tooltip": {
+        "callbacks": {
+          "title": "function(items) { return items[0].raw.x; }",
+          "label": "function(ctx) { return ctx.raw.v; }"
+        }
+      }
+    },
+    "scales": {
+      "x": {
+        "type": "category",
+        "labels": ["Leggings","Shorts","Pants","Bags","Jackets","Shirts","Shoes","Yoga Mats","Tank Tops","Hats"],
+        "grid": { "display": false }
+      },
+      "y": {
+        "type": "category",
+        "labels": ["lululemon"],
+        "grid": { "display": false }
+      },
+      "color": {
+        "type": "linear",
+        "min": -100,
+        "max": 100,
+        "axis": "x",
+        "display": true,
+        "position": "bottom",
+        "interpolate": true,
+        "backgroundColor": {
+          "type": "linear",
+          "stops": [
+            { "value": -100, "color": "red" },
+            { "value": -50, "color": "#ff9999" },
+            { "value": 0, "color": "#ffffcc" },
+            { "value": 50, "color": "#a1d99b" },
+            { "value": 100, "color": "green" }
+          ]
+        }
+      }
+    }
+  }
+}
