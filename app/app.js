@@ -47,6 +47,7 @@ function reviveFunctions(input) {
   try {
     const res = await fetch(cfgPath, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${cfgPath}`);
+
     // Parse JSON then revive any function strings (for matrix scriptables, tooltip callbacks, etc.)
     let cfg = await res.json();
     cfg = reviveFunctions(cfg);
@@ -61,31 +62,37 @@ function reviveFunctions(input) {
     // Resolve chart type (donut → Chart.js "doughnut")
     const resolvedType = cfg.type || (chartType === 'donut' ? 'doughnut' : chartType);
 
-    // If type is matrix and width/height/background are not provided, give sensible defaults
+    // If type is matrix, ensure dataset settings that the plugin expects
     if (resolvedType === 'matrix' && Array.isArray(cfg.data?.datasets)) {
       for (const ds of cfg.data.datasets) {
+        // Required so {x,y,v} objects are passed through and ctx.raw is defined
+        if (ds.parsing !== false) ds.parsing = false;
+
         // width/height to size each cell into its category bucket (with a small gap)
         if (typeof ds.width !== 'function') {
           ds.width = function(ctx) {
             const x = ctx.chart.scales.x;
-            const w = Math.abs(x.getPixelForTick(1) - x.getPixelForTick(0));
+            const tick0 = x.getPixelForTick(0);
+            const tick1 = x.getPixelForTick(Math.min(1, x.ticks.length - 1));
+            const w = Math.abs(tick1 - tick0);
             return Math.max(4, w - 4);
           };
         }
         if (typeof ds.height !== 'function') {
           ds.height = function(ctx) {
             const y = ctx.chart.scales.y;
-            const h = Math.abs(y.getPixelForTick(1) - y.getPixelForTick(0));
+            const tick0 = y.getPixelForTick(0);
+            const tick1 = y.getPixelForTick(Math.min(1, y.ticks.length - 1));
+            const h = Math.abs(tick1 - tick0);
             return Math.max(4, h - 4);
           };
         }
-        // very basic green-red heat if none provided
+
+        // simple red→yellow→green if none provided
         if (typeof ds.backgroundColor !== 'function') {
           ds.backgroundColor = function(ctx) {
             const v = Number(ctx.raw?.v ?? 0);
-            // map [-100..100] to 0..1
-            const t = Math.max(0, Math.min(1, (v + 100) / 200));
-            // simple lerp red → yellow → green
+            const t = Math.max(0, Math.min(1, (v + 100) / 200)); // map [-100..100] → [0..1]
             function lerp(a,b,t){ return Math.round(a + (b-a)*t); }
             let r,g,b;
             if (t < 0.5) { // red -> yellow
@@ -102,6 +109,10 @@ function reviveFunctions(input) {
             return `rgb(${r},${g},${b})`;
           };
         }
+
+        // nice separation between cells (optional)
+        if (ds.borderWidth == null) ds.borderWidth = 1;
+        if (ds.borderColor == null) ds.borderColor = 'rgba(255,255,255,0.75)';
       }
     }
 
