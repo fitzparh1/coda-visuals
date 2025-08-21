@@ -3,7 +3,7 @@
   "data": {
     "datasets": [{
       "label": "lululemon",
-      "parsing": false,
+      "parsing": { "xAxisKey": "x", "yAxisKey": "y", "key": "v" },
       "data": [
         { "x": "Leggings",  "y": "lululemon", "v": 56 },
         { "x": "Shorts",    "y": "lululemon", "v": 78 },
@@ -16,17 +16,17 @@
         { "x": "Tank Tops", "y": "lululemon", "v": 76 },
         { "x": "Hats",      "y": "lululemon", "v": 84 }
       ],
-      "backgroundColor": "function(ctx){ const v = Number(ctx.raw?.v||0); const t = Math.max(0, Math.min(1, v/100)); const L = 38 + (82-38)*(1-t); return `hsl(135, 58%, ${L}%)`; }",
+      "backgroundColor": "function(ctx){ const ds = ctx.dataset; const i = ctx.dataIndex; const v = Number(ds.data?.[i]?.v ?? 0); const t = Math.max(0, Math.min(1, v/100)); const L = 38 + (82-38)*(1-t); return `hsl(135, 58%, ${L}%)`; }",
       "borderWidth": 1,
       "borderColor": "#ffffff",
       "borderRadius": 8,
       "datalabels": {
-        "formatter": "function(value, ctx){ return ctx.raw.v; }",
+        "formatter": "function(value, ctx){ const ds = ctx.chart.data.datasets[ctx.datasetIndex]; const v = ds.data?.[ctx.dataIndex]?.v; return v ?? ''; }",
         "font": { "size": 12, "weight": "600" },
         "anchor": "center",
         "align": "center",
         "clip": true,
-        "color": "function(value, ctx){ const v = ctx.raw.v; return v >= 65 ? '#ffffff' : '#0b2e13'; }"
+        "color": "function(value, ctx){ const ds = ctx.chart.data.datasets[ctx.datasetIndex]; const v = Number(ds.data?.[ctx.dataIndex]?.v ?? 0); return v >= 65 ? '#ffffff' : '#0b2e13'; }"
       }
     }]
   },
@@ -38,8 +38,8 @@
       "legend": { "display": false },
       "tooltip": {
         "callbacks": {
-          "title": "function(items){ return items[0].raw.x; }",
-          "label": "function(ctx){ return ctx.raw.v; }"
+          "title": "function(items){ const i = items[0].dataIndex, ds = items[0].dataset; return ds.data?.[i]?.x ?? ''; }",
+          "label": "function(ctx){ const ds = ctx.dataset; const v = ds.data?.[ctx.dataIndex]?.v; return v ?? ''; }"
         }
       },
       "datalabels": { "display": true }
