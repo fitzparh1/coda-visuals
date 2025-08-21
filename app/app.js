@@ -148,4 +148,9 @@ function reviveFunctions(input) {
       'beforeend',
       `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
          <b>Config error</b><br>${String(e.message)}
-         <div style="color:#6c757d;margin-top:6px"
+         <div style="color:#6c757d;margin-top:6px">Tried: <code>${cfgPath}</code></div>
+       </div>`
+    );
+    console.error('Config load/render error:', e);
+  }
+})();
