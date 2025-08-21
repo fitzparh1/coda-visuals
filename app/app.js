@@ -1,8 +1,9 @@
+// Parse ?client=<slug>&chart=<type>
 const q = new URLSearchParams(location.search);
-const chartType = q.get('chart') || 'donut';
+const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar
 const clientKey = q.get('client') || 'american-apparel';
 
-// Client > chartType taxonomy:
+// client > chart taxonomy
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 (async function init(){
@@ -11,31 +12,36 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
   const badgeEl = document.getElementById('badge');
 
   try {
-    console.log('Fetching config:', cfgPath);
     const res = await fetch(cfgPath, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${cfgPath}`);
     const cfg = await res.json();
-    console.log('Loaded config:', cfg);
 
+    // optional UI text
     titleEl.textContent = cfg.title || '';
+    subEl.textContent   = cfg.subtitle || '';
     if (cfg.badge !== undefined) badgeEl.textContent = String(cfg.badge);
 
-    const ctx = document.getElementById('chart').getContext('2d');
+    // resolve chart type (donut → Chart.js "doughnut")
     const resolvedType = cfg.type || (chartType === 'donut' ? 'doughnut' : chartType);
 
+    const ctx = document.getElementById('chart').getContext('2d');
     new Chart(ctx, {
       type: resolvedType,
-      data: cfg.data,
-      options: cfg.options || { responsive: true, maintainAspectRatio: false }
+      data: cfg.data,                         // must be the Chart.js-shaped object
+      options: cfg.options || {
+        responsive: true,
+        maintainAspectRatio: false
+      }
     });
   } catch (e) {
-    console.error('Config load/render error:', e);
+    // visible error to speed up debugging
     document.body.insertAdjacentHTML(
       'beforeend',
-      `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px/1.4 system-ui">
+      `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
          <b>Config error</b><br>${String(e.message)}
          <div style="color:#6c757d;margin-top:6px">Tried: <code>${cfgPath}</code></div>
        </div>`
     );
+    console.error('Config load/render error:', e);
   }
 })();
