@@ -2,7 +2,18 @@
   "title": "Source Distribution",
   "badge": "v1.0",
   "type": "doughnut",
-  "labels": ["Twitter", "YouTube", "News", "Forums", "Bluesky", "Other"],
-  "data": [65, 12, 8, 6, 4, 5],
-  "backgroundColor": ["#f1e88e", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#607d8b"]
+  "data": {
+    "labels": ["Twitter","YouTube","News","Forums","Bluesky","Other"],
+    "datasets": [{
+      "data": [65,12,8,6,4,5],
+      "backgroundColor": ["#1e88e5","#ff9800","#4caf50","#9c27b0","#f44336","#607d8b"],
+      "borderWidth": 0,
+      "cutout": "60%"
+    }]
+  },
+  "options": {
+    "plugins": { "legend": { "position": "right", "labels": { "usePointStyle": true, "padding": 15 } } },
+    "responsive": true,
+    "maintainAspectRatio": false
+  }
 }
