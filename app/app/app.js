@@ -5,7 +5,7 @@ const vertical   = q.get('vertical') || 'ecomm';
 const clientKey  = q.get('client')   || 'american-apparel';
 
 // Build path to config JSON
-const cfgPath = `../configs/${chartType}/${vertical}/${clientKey}.json`;
+const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 (async function init(){
   const titleEl = document.getElementById('title');
