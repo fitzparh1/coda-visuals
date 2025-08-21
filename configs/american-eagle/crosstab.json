@@ -16,12 +16,10 @@
         { "x": "Tank Tops","y": "lululemon", "v": 76 },
         { "x": "Hats",     "y": "lululemon", "v": 84 }
       ],
-      "backgroundColor": "function(ctx){ const v = Number(ctx.raw.v||0); const t = Math.max(0, Math.min(1, v/100)); const l = 86 - 46*t; /* 86%→40% */ return `hsl(135, 55%, ${l}%)`; }",
+      "backgroundColor": "function(ctx){ const v = Number(ctx.raw.v||0); const t = Math.max(0, Math.min(1, v/100)); const l = 86 - 46*t; return `hsl(135, 55%, ${l}%)`; }",
       "borderWidth": 1,
       "borderColor": "#ffffff",
-      "borderRadius": 6,
-      "width": "function(ctx){ const x = ctx.chart.scales.x; const n = Math.max(1, x.ticks.length); const area = ctx.chart.chartArea; const cell = (area.right - area.left) / n; return Math.max(28, cell - 12); }",
-      "height": "function(ctx){ return 46; }"
+      "borderRadius": 6
     }]
   },
   "options": {
@@ -39,7 +37,7 @@
       "datalabels": {
         "color": "#0b2e13",
         "font": { "weight": "600", "size": 12 },
-        "formatter": "function(v, ctx){ return ctx.raw.v; }",
+        "formatter": "function(value, ctx){ return ctx.raw.v; }",
         "anchor": "center",
         "align": "center",
         "clip": true
