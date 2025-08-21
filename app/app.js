@@ -39,6 +39,7 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
       options: cfg.options || { responsive: true, maintainAspectRatio: false }
     });
   } catch (e) {
+    // show an error box
     document.body.insertAdjacentHTML(
       'beforeend',
       `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
