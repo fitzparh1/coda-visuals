@@ -15,12 +15,14 @@
         { "x": "Tank Tops","y": "lululemon", "v": 76 },
         { "x": "Hats",     "y": "lululemon", "v": 84 }
       ],
-      "backgroundColor": "function(ctx) { const v = ctx.raw.v; const scale = ctx.chart.scales.color; return scale.getColorForValue(v); }",
-      "width": "function(ctx) { return ctx.chart.scales.x.getPixelForTick(1) - ctx.chart.scales.x.getPixelForTick(0) - 4; }",
-      "height": "function(ctx) { return ctx.chart.scales.y.getPixelForTick(1) - ctx.chart.scales.y.getPixelForTick(0) - 4; }"
+      "backgroundColor": "function(ctx) { const v = ctx.raw.v; const t = Math.max(0, Math.min(1, (v + 100) / 200)); function lerp(a,b,t){return Math.round(a+(b-a)*t);} let r,g,b; if(t<0.5){const k=t/0.5; r=255; g=lerp(0,255,k); b=0;} else {const k=(t-0.5)/0.5; r=lerp(255,0,k); g=255; b=0;} return `rgb(${r},${g},${b})`; }",
+      "width": "function(ctx) { const x=ctx.chart.scales.x; return Math.abs(x.getPixelForTick(1)-x.getPixelForTick(0))-4; }",
+      "height":"function(ctx) { const y=ctx.chart.scales.y; return Math.abs(y.getPixelForTick(1)-y.getPixelForTick(0))-4; }"
     }]
   },
   "options": {
+    "responsive": true,
+    "maintainAspectRatio": false,
     "plugins": {
       "legend": { "display": false },
       "tooltip": {
@@ -47,18 +49,7 @@
         "max": 100,
         "axis": "x",
         "display": true,
-        "position": "bottom",
-        "interpolate": true,
-        "backgroundColor": {
-          "type": "linear",
-          "stops": [
-            { "value": -100, "color": "red" },
-            { "value": -50, "color": "#ff9999" },
-            { "value": 0, "color": "#ffffcc" },
-            { "value": 50, "color": "#a1d99b" },
-            { "value": 100, "color": "green" }
-          ]
-        }
+        "position": "bottom"
       }
     }
   }
