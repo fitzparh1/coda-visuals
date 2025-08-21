@@ -1,7 +1,7 @@
 // Parse ?client=<slug>&chart=<type>
 const q = new URLSearchParams(location.search);
 const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar | matrix
-const clientKey = q.get('client') || 'american-apparel';
+const clientKey = q.get('client') || 'american-eagle';
 
 // client > chart taxonomy
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
