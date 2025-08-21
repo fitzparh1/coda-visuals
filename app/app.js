@@ -7,34 +7,41 @@ const clientKey = q.get('client') || 'american-apparel';
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 (async function init(){
-  const titleEl = document.getElementById('title');
-  const subEl   = document.getElementById('subtitle');
-  const badgeEl = document.getElementById('badge');
+  const titleEl  = document.getElementById('title');
+  const subEl    = document.getElementById('subtitle');
+  const subWrap  = document.querySelector('.sub');  // wrapper for subtitle row (may not exist)
 
   try {
     const res = await fetch(cfgPath, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${cfgPath}`);
     const cfg = await res.json();
 
-    // optional UI text
+    // Optional UI text
     titleEl.textContent = cfg.title || '';
-    subEl.textContent   = cfg.subtitle || '';
-    if (cfg.badge !== undefined) badgeEl.textContent = String(cfg.badge);
 
-    // resolve chart type (donut → Chart.js "doughnut")
+    if (subEl && subWrap) {
+      if (cfg.subtitle && String(cfg.subtitle).trim() !== '') {
+        subEl.textContent = String(cfg.subtitle);
+        subWrap.style.display = '';   // show
+      } else {
+        subWrap.style.display = 'none'; // hide empty subtitle row
+      }
+    }
+
+    // Resolve chart type (donut → Chart.js "doughnut")
     const resolvedType = cfg.type || (chartType === 'donut' ? 'doughnut' : chartType);
 
     const ctx = document.getElementById('chart').getContext('2d');
     new Chart(ctx, {
       type: resolvedType,
-      data: cfg.data,                         // must be the Chart.js-shaped object
+      data: cfg.data,  // must be the Chart.js-shaped object
       options: cfg.options || {
         responsive: true,
         maintainAspectRatio: false
       }
     });
   } catch (e) {
-    // visible error to speed up debugging
+    // Visible error to speed up debugging
     document.body.insertAdjacentHTML(
       'beforeend',
       `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
@@ -43,5 +50,6 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
        </div>`
     );
     console.error('Config load/render error:', e);
+    if (titleEl) titleEl.textContent = 'Error loading chart';
   }
 })();
