@@ -7,7 +7,7 @@ const clientKey = q.get('client') || 'american-apparel';
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 // ---------- responsive height helper ----------
-const BOX_RATIO = 4;   // was 16/9; shorter box looks better for 1-row matrix
+const BOX_RATIO = 4;   // shorter box looks better for 1-row matrix
 const MIN_HEIGHT = 260;
 const boxEl = document.querySelector('.box');
 
@@ -127,4 +127,25 @@ function reviveFunctions(input) {
     fitBoxHeight();
     chart.resize();
 
-    // Optional: adapt legen
+    // Optional: adapt legend position for narrow widths
+    const adaptLegend = () => {
+      if (!chart) return;
+      const narrow = (boxEl.clientWidth || 0) < 520;
+      const desired = narrow ? 'bottom' : 'right';
+      if (chart.options?.plugins?.legend) {
+        if (chart.options.plugins.legend.position !== desired) {
+          chart.options.plugins.legend.position = desired;
+          chart.update('none');
+        }
+      }
+    };
+
+    adaptLegend();
+    new ResizeObserver(() => { fitBoxHeight(); chart.resize(); adaptLegend(); }).observe(boxEl);
+
+  } catch (e) {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
+         <b>Config error</b><br>${String(e.message)}
+         <div style="color:#6c757d;margin-top:6px"
