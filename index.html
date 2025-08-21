@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Source Distribution</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background:#fff; }
+    .box { width: 600px; height: 400px; }
+  </style>
+</head>
+<body>
+  <h2>Who's Talking & Where?</h2>
+  <div class="box"><canvas id="donut"></canvas></div>
+
+  <script>
+    const ctx = document.getElementById('donut').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ["Twitter", "YouTube", "News", "Forums", "Bluesky", "Other"],
+        datasets: [{
+          data: [65, 12, 8, 6, 4, 5],
+          backgroundColor: ["#1e88e5", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#607d8b"],
+          borderWidth: 0,
+          cutout: '60%'
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { usePointStyle: true, padding: 15 }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
