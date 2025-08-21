@@ -1,10 +1,8 @@
-// Read query params, e.g. ?chart=donut&vertical=ecomm&client=american-apparel
 const q = new URLSearchParams(location.search);
-const chartType  = q.get('chart')    || 'donut';
-const vertical   = q.get('vertical') || 'ecomm';
-const clientKey  = q.get('client')   || 'american-apparel';
+const chartType = q.get('chart') || 'donut';
+const clientKey = q.get('client') || 'american-apparel';
 
-// Build path to config JSON
+// Client > chartType taxonomy:
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 (async function init(){
@@ -13,26 +11,31 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
   const badgeEl = document.getElementById('badge');
 
   try {
+    console.log('Fetching config:', cfgPath);
     const res = await fetch(cfgPath, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Config not found: ${cfgPath}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${cfgPath}`);
     const cfg = await res.json();
+    console.log('Loaded config:', cfg);
 
-    // Optional UI text from config
     titleEl.textContent = cfg.title || '';
-    subEl.textContent   = cfg.subtitle || '';
     if (cfg.badge !== undefined) badgeEl.textContent = String(cfg.badge);
 
     const ctx = document.getElementById('chart').getContext('2d');
+    const resolvedType = cfg.type || (chartType === 'donut' ? 'doughnut' : chartType);
 
     new Chart(ctx, {
-      type: (cfg.type || chartType === 'donut' ? 'doughnut' : chartType),
+      type: resolvedType,
       data: cfg.data,
-      options: cfg.options || { responsive:true, maintainAspectRatio:false }
+      options: cfg.options || { responsive: true, maintainAspectRatio: false }
     });
   } catch (e) {
-    document.body.innerHTML = `<div style="padding:20px;font-family:sans-serif">
-      <h3>Config error</h3><pre>${e.message}</pre>
-      <p>Looked for: <code>${cfgPath}</code></p>
-    </div>`;
+    console.error('Config load/render error:', e);
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px/1.4 system-ui">
+         <b>Config error</b><br>${String(e.message)}
+         <div style="color:#6c757d;margin-top:6px">Tried: <code>${cfgPath}</code></div>
+       </div>`
+    );
   }
 })();
