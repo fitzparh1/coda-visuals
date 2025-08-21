@@ -1,0 +1,8 @@
+{
+  "title": "Source Distribution",
+  "badge": "v1.0",
+  "type": "doughnut",
+  "labels": ["Twitter", "YouTube", "News", "Forums", "Bluesky", "Other"],
+  "data": [65, 12, 8, 6, 4, 5],
+  "backgroundColor": ["#f1e88e", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#607d8b"]
+}
