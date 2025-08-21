@@ -7,7 +7,6 @@ const clientKey = q.get('client') || 'american-apparel';
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 (async function init(){
-  const titleEl = document.getElementById('title');
   const subEl   = document.getElementById('subtitle');
   const subWrap = document.querySelector('.sub'); // may not exist
 
@@ -16,9 +15,7 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${cfgPath}`);
     const cfg = await res.json();
 
-    // Optional UI text
-    if (titleEl) titleEl.textContent = cfg.title || '';
-
+    // Optional subtitle
     if (subWrap) {
       const text = (cfg.subtitle ?? '').toString().trim();
       if (subEl && text) {
@@ -39,7 +36,6 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
       options: cfg.options || { responsive: true, maintainAspectRatio: false }
     });
   } catch (e) {
-    // show an error box
     document.body.insertAdjacentHTML(
       'beforeend',
       `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
@@ -48,6 +44,5 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
        </div>`
     );
     console.error('Config load/render error:', e);
-    if (titleEl) titleEl.textContent = 'Error loading chart';
   }
 })();
