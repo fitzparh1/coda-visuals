@@ -1,6 +1,5 @@
 {
   "title": "Mentions Over Time",
-  "badge": "1",
   "type": "line",
   "data": {
     "labels": ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
