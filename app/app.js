@@ -1,32 +1,26 @@
 // Parse ?client=<slug>&chart=<type>
 const q = new URLSearchParams(location.search);
-const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar | crosstab
+const chartType = q.get('chart') || 'donut';            // donut | line | bar | crosstab
 const clientKey = q.get('client') || 'american-eagle';
-
-// client > chart taxonomy
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 // ---------- responsive height helper ----------
-const BOX_RATIO = 4;   // shorter box looks better for 1-row matrix
+const BOX_RATIO = 4;
 const MIN_HEIGHT = 260;
 const boxEl = document.querySelector('.box');
-
 function fitBoxHeight() {
   if (!boxEl) return;
   const w = boxEl.clientWidth || 0;
   const h = Math.max(MIN_HEIGHT, Math.round(w / BOX_RATIO));
   boxEl.style.height = h + 'px';
 }
-
 new ResizeObserver(fitBoxHeight).observe(boxEl);
 window.addEventListener('load', fitBoxHeight);
 
-// ---- Register optional plugins if present (safe no-ops if missing) ----
-if (window.ChartDataLabels && Chart?.register) {
-  Chart.register(window.ChartDataLabels);
-}
+// ---- Optional plugins ----
+if (window.ChartDataLabels && Chart?.register) Chart.register(window.ChartDataLabels);
 
-// ---- helper: revive "function(...) { ... }" strings in JSON into real functions ----
+// ---- revive "function(...) { ... }" strings ----
 function reviveFunctions(input) {
   if (Array.isArray(input)) return input.map(reviveFunctions);
   if (input && typeof input === 'object') {
@@ -35,9 +29,7 @@ function reviveFunctions(input) {
   }
   if (typeof input === 'string') {
     const s = input.trim();
-    if (s.startsWith('function')) {
-      try { return eval(`(${s})`); } catch { /* leave as-is on error */ }
-    }
+    if (s.startsWith('function')) { try { return eval(`(${s})`); } catch {} }
   }
   return input;
 }
@@ -50,10 +42,8 @@ function getY(ds, i) { const p = getPoint(ds, i); return (p && p.y) ?? ''; }
 
 function withRawShim(fn, makeRaw) {
   if (typeof fn !== 'function') return fn;
-  // Return a wrapper that injects ctx.raw (or items[0].raw for tooltip)
   return function wrapped(ctxOrItems) {
     try {
-      // datalabels/backgroundColor/callbacks receive (ctx)
       if (ctxOrItems && ctxOrItems.dataIndex != null) {
         const ctx = ctxOrItems;
         const ds = ctx.dataset || (ctx.chart?.data?.datasets?.[ctx.datasetIndex]);
@@ -61,7 +51,6 @@ function withRawShim(fn, makeRaw) {
         const raw = makeRaw(ds, i);
         return fn({ ...ctx, raw });
       }
-      // tooltip callbacks can receive (items) or (ctx)
       if (Array.isArray(ctxOrItems) && ctxOrItems.length) {
         const items = ctxOrItems;
         const i = items[0].dataIndex ?? 0;
@@ -70,7 +59,6 @@ function withRawShim(fn, makeRaw) {
         const patched = [{ ...items[0], raw }];
         return fn(patched);
       }
-      // label(ctx) form in tooltip
       if (ctxOrItems && ctxOrItems.dataset) {
         const ctx = ctxOrItems;
         const ds = ctx.dataset;
@@ -86,11 +74,9 @@ function withRawShim(fn, makeRaw) {
   };
 }
 
-// ------------------------------------------------
-
 (async function init(){
   const subEl   = document.getElementById('subtitle');
-  const subWrap = document.querySelector('.sub'); // may not exist
+  const subWrap = document.querySelector('.sub');
   let chart;
 
   try {
@@ -100,26 +86,26 @@ function withRawShim(fn, makeRaw) {
     let cfg = await res.json();
     cfg = reviveFunctions(cfg);
 
-    // Optional subtitle
+    // subtitle
     if (subWrap) {
       const text = (cfg.subtitle ?? '').toString().trim();
       if (subEl && text) { subEl.textContent = text; subWrap.style.display = ''; }
       else { subWrap.style.display = 'none'; }
     }
 
-    // Resolve chart type (donut → doughnut, crosstab → matrix, bar-chart → bar)
+    // chart type mapping
     const TYPE_MAP = { 'donut': 'doughnut', 'crosstab': 'matrix', 'bar-chart': 'bar' };
     const resolvedType = cfg.type || TYPE_MAP[chartType] || chartType;
 
-    // If type is matrix, ensure dataset + callbacks are safe even when JSON assumes ctx.raw
+    // --- MATRIX HARDENING ---
     if (resolvedType === 'matrix' && Array.isArray(cfg.data?.datasets)) {
       for (const ds of cfg.data.datasets) {
-        // Explicit parsing keys for {x,y,v}
+        // explicit parsing for {x,y,v}
         if (!ds.parsing || ds.parsing === false) {
           ds.parsing = { xAxisKey: 'x', yAxisKey: 'y', key: 'v' };
         }
 
-        // width/height to size each cell into its category bucket (with a small gap)
+        // size cells
         if (typeof ds.width !== 'function') {
           ds.width = function(ctx) {
             const x = ctx.chart.scales.x;
@@ -134,95 +120,94 @@ function withRawShim(fn, makeRaw) {
             const y = ctx.chart.scales.y;
             const tick0 = y.getPixelForTick(0);
             const tick1 = y.getPixelForTick(Math.min(1, y.ticks.length - 1));
-            const h = Math.abs(tick1 - tick0) || 46;  // fallback for single-row case
+            const h = Math.abs(tick1 - tick0) || 46;
             return Math.max(24, h - 8);
           };
         }
 
-        // Default heat if none provided (does NOT depend on ctx.raw)
+        // default heat (safe if dataIndex is missing)
         if (typeof ds.backgroundColor !== 'function') {
           ds.backgroundColor = function(ctx) {
+            if (ctx?.dataIndex == null) return 'rgba(0,0,0,0.06)';
             const v = getV(ctx.dataset, ctx.dataIndex);
-            const t = Math.max(0, Math.min(1, (v + 100) / 200)); // [-100..100] → [0..1]
-            function lerp(a,b,t){ return Math.round(a + (b-a)*t); }
+            const t = Math.max(0, Math.min(1, (v + 100) / 200));
+            const lerp = (a,b,t)=>Math.round(a+(b-a)*t);
             let r,g,b;
-            if (t < 0.5) { const k = t / 0.5; r = 255; g = lerp(0,255,k); b = 0; }
-            else { const k = (t - 0.5) / 0.5; r = lerp(255,0,k); g = 255; b = 0; }
+            if (t < 0.5) { const k = t/0.5; r=255; g=lerp(0,255,k); b=0; }
+            else { const k=(t-0.5)/0.5; r=lerp(255,0,k); g=255; b=0; }
             return `rgb(${r},${g},${b})`;
           };
         } else {
-          // If user provided a function that expects ctx.raw.v, inject a safe raw
+          // wrap user fn that may read ctx.raw.v
           const old = ds.backgroundColor;
-          ds.backgroundColor = withRawShim(old, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+          ds.backgroundColor = withRawShim(old, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
         }
 
         if (ds.borderWidth == null) ds.borderWidth = 1;
         if (ds.borderColor == null) ds.borderColor = 'rgba(255,255,255,0.75)';
         if (ds.borderRadius == null) ds.borderRadius = 6;
+
+        // NEW: shim DATASET-LEVEL datalabels (your JSON puts them here)
+        if (ds.datalabels && typeof ds.datalabels === 'object') {
+          const dl = ds.datalabels;
+          if (typeof dl.formatter === 'function') {
+            dl.formatter = withRawShim(dl.formatter, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
+          }
+          if (typeof dl.color === 'function') {
+            dl.color = withRawShim(dl.color, (ds,i)=>({ v:getV(ds*i), x:getX(ds,i), y:getY(ds,i) }));
+          }
+          if (typeof dl.backgroundColor === 'function') {
+            dl.backgroundColor = withRawShim(dl.backgroundColor, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
+          }
+        }
       }
 
-      // Also shim common plugin callbacks that often read ctx.raw.*
+      // also shim plugin-level datalabels & tooltip callbacks
       const dl = cfg.options?.plugins?.datalabels;
       if (dl && typeof dl === 'object') {
         if (typeof dl.formatter === 'function') {
-          dl.formatter = withRawShim(dl.formatter, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+          dl.formatter = withRawShim(dl.formatter, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
         }
         if (typeof dl.color === 'function') {
-          dl.color = withRawShim(dl.color, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+          dl.color = withRawShim(dl.color, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
         }
         if (typeof dl.backgroundColor === 'function') {
-          dl.backgroundColor = withRawShim(dl.backgroundColor, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+          dl.backgroundColor = withRawShim(dl.backgroundColor, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
         }
       }
-
       const ttip = cfg.options?.plugins?.tooltip?.callbacks;
       if (ttip && typeof ttip === 'object') {
         if (typeof ttip.title === 'function') {
-          ttip.title = withRawShim(ttip.title, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+          ttip.title = withRawShim(ttip.title, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
         }
         if (typeof ttip.label === 'function') {
-          ttip.label = withRawShim(ttip.label, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+          ttip.label = withRawShim(ttip.label, (ds,i)=>({ v:getV(ds,i), x:getX(ds,i), y:getY(ds,i) }));
         }
       }
     }
+    // --- end MATRIX HARDENING ---
 
-    // Build the chart
+    // build chart
     const ctx = document.getElementById('chart').getContext('2d');
-    let options = {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      ...cfg.options
-    };
+    const options = { responsive:true, maintainAspectRatio:false, animation:false, ...cfg.options };
+    const TYPE_MAP = { 'donut': 'doughnut', 'crosstab': 'matrix', 'bar-chart': 'bar' };
+    const finalType = cfg.type || TYPE_MAP[chartType] || chartType;
 
-    const chartConfig = { type: resolvedType, data: cfg.data, options };
+    chart = new Chart(ctx, { type: finalType, data: cfg.data, options });
 
-    try {
-      chart = new Chart(ctx, chartConfig);
-    } catch (e) {
-      // Surface any init-time errors with path info
-      throw new Error(e?.message || String(e));
-    }
-
-    // First layout after chart exists
-    fitBoxHeight();
-    chart.resize();
-
-    // Optional: adapt legend position for narrow widths
+    // layout/legend adapt
+    fitBoxHeight(); chart.resize();
     const adaptLegend = () => {
       if (!chart) return;
       const narrow = (boxEl.clientWidth || 0) < 520;
       const desired = narrow ? 'bottom' : 'right';
-      if (chart.options?.plugins?.legend) {
-        if (chart.options.plugins.legend.position !== desired) {
-          chart.options.plugins.legend.position = desired;
-          chart.update('none');
-        }
+      if (chart.options?.plugins?.legend && chart.options.plugins.legend.position !== desired) {
+        chart.options.plugins.legend.position = desired;
+        chart.update('none');
       }
     };
-
     adaptLegend();
-    new ResizeObserver(() => { fitBoxHeight(); chart.resize(); adaptLegend(); }).observe(boxEl);
+    new ResizeObserver(()=>{ fitBoxHeight(); chart.resize(); adaptLegend(); }).observe(boxEl);
 
   } catch (e) {
     document.body.insertAdjacentHTML(
