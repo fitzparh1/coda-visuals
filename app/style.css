@@ -1,5 +1,18 @@
-html,body{margin:0;background:#fff}
-.wrap{width:100%;max-width:720px;margin:0 auto;padding:20px}
-.sub{display:flex;gap:8px;align-items:center;color:#6c757d;font:14px/1.2 system-ui;margin:0 0 16px}
-.box{width:100%;aspect-ratio:16/9;height:auto;position:relative}
-@supports not (aspect-ratio: 1 / 1){ .box{height:420px} }
+/* base */
+html, body { margin: 0; background: #fff; }
+.wrap { width: 100%; max-width: 720px; margin: 0 auto; padding: 20px; }
+
+/* chart container */
+.box {
+  width: 100%;
+  position: relative;      /* Chart.js needs this */
+  /* We'll set height via JS to keep it solid across Coda */
+}
+
+/* make the canvas truly fill the box */
+.box canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
