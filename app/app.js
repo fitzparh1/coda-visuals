@@ -7,9 +7,9 @@ const clientKey = q.get('client') || 'american-apparel';
 const cfgPath = `../configs/${clientKey}/${chartType}.json`;
 
 (async function init(){
-  const titleEl  = document.getElementById('title');
-  const subEl    = document.getElementById('subtitle');
-  const subWrap  = document.querySelector('.sub');  // wrapper for subtitle row (may not exist)
+  const titleEl = document.getElementById('title');
+  const subEl   = document.getElementById('subtitle');
+  const subWrap = document.querySelector('.sub'); // may not exist
 
   try {
     const res = await fetch(cfgPath, { cache: 'no-store' });
@@ -17,14 +17,15 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
     const cfg = await res.json();
 
     // Optional UI text
-    titleEl.textContent = cfg.title || '';
+    if (titleEl) titleEl.textContent = cfg.title || '';
 
-    if (subEl && subWrap) {
-      if (cfg.subtitle && String(cfg.subtitle).trim() !== '') {
-        subEl.textContent = String(cfg.subtitle);
-        subWrap.style.display = '';   // show
+    if (subWrap) {
+      const text = (cfg.subtitle ?? '').toString().trim();
+      if (subEl && text) {
+        subEl.textContent = text;
+        subWrap.style.display = '';
       } else {
-        subWrap.style.display = 'none'; // hide empty subtitle row
+        subWrap.style.display = 'none';
       }
     }
 
@@ -34,14 +35,10 @@ const cfgPath = `../configs/${clientKey}/${chartType}.json`;
     const ctx = document.getElementById('chart').getContext('2d');
     new Chart(ctx, {
       type: resolvedType,
-      data: cfg.data,  // must be the Chart.js-shaped object
-      options: cfg.options || {
-        responsive: true,
-        maintainAspectRatio: false
-      }
+      data: cfg.data, // must be { labels, datasets: [...] }
+      options: cfg.options || { responsive: true, maintainAspectRatio: false }
     });
   } catch (e) {
-    // Visible error to speed up debugging
     document.body.insertAdjacentHTML(
       'beforeend',
       `<div style="padding:12px;margin:12px;border:1px solid #eee;border-radius:8px;font:14px system-ui">
