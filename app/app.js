@@ -1,6 +1,6 @@
 // Parse ?client=<slug>&chart=<type>
 const q = new URLSearchParams(location.search);
-const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar | matrix
+const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar | crosstab
 const clientKey = q.get('client') || 'american-eagle';
 
 // client > chart taxonomy
@@ -42,6 +42,50 @@ function reviveFunctions(input) {
   return input;
 }
 
+// ---- helpers for matrix safe access / shims ----
+function getPoint(ds, i) { return (ds && Array.isArray(ds.data)) ? ds.data[i] : undefined; }
+function getV(ds, i) { const p = getPoint(ds, i); return Number((p && (p.v ?? p.value)) ?? 0); }
+function getX(ds, i) { const p = getPoint(ds, i); return (p && p.x) ?? ''; }
+function getY(ds, i) { const p = getPoint(ds, i); return (p && p.y) ?? ''; }
+
+function withRawShim(fn, makeRaw) {
+  if (typeof fn !== 'function') return fn;
+  // Return a wrapper that injects ctx.raw (or items[0].raw for tooltip)
+  return function wrapped(ctxOrItems) {
+    try {
+      // datalabels/backgroundColor/callbacks receive (ctx)
+      if (ctxOrItems && ctxOrItems.dataIndex != null) {
+        const ctx = ctxOrItems;
+        const ds = ctx.dataset || (ctx.chart?.data?.datasets?.[ctx.datasetIndex]);
+        const i  = ctx.dataIndex ?? 0;
+        const raw = makeRaw(ds, i);
+        return fn({ ...ctx, raw });
+      }
+      // tooltip callbacks can receive (items) or (ctx)
+      if (Array.isArray(ctxOrItems) && ctxOrItems.length) {
+        const items = ctxOrItems;
+        const i = items[0].dataIndex ?? 0;
+        const ds = items[0].dataset;
+        const raw = makeRaw(ds, i);
+        const patched = [{ ...items[0], raw }];
+        return fn(patched);
+      }
+      // label(ctx) form in tooltip
+      if (ctxOrItems && ctxOrItems.dataset) {
+        const ctx = ctxOrItems;
+        const ds = ctx.dataset;
+        const i  = ctx.dataIndex ?? 0;
+        const raw = makeRaw(ds, i);
+        return fn({ ...ctx, raw });
+      }
+      return fn(ctxOrItems);
+    } catch (e) {
+      console.warn('Shimmed callback failed:', e);
+      return undefined;
+    }
+  };
+}
+
 // ------------------------------------------------
 
 (async function init(){
@@ -63,13 +107,17 @@ function reviveFunctions(input) {
       else { subWrap.style.display = 'none'; }
     }
 
-    // Resolve chart type (donut → Chart.js "doughnut")
-    const resolvedType = cfg.type || (chartType === 'donut' ? 'doughnut' : chartType);
+    // Resolve chart type (donut → doughnut, crosstab → matrix, bar-chart → bar)
+    const TYPE_MAP = { 'donut': 'doughnut', 'crosstab': 'matrix', 'bar-chart': 'bar' };
+    const resolvedType = cfg.type || TYPE_MAP[chartType] || chartType;
 
-    // If type is matrix, ensure dataset settings that the plugin expects
+    // If type is matrix, ensure dataset + callbacks are safe even when JSON assumes ctx.raw
     if (resolvedType === 'matrix' && Array.isArray(cfg.data?.datasets)) {
       for (const ds of cfg.data.datasets) {
-        if (ds.parsing !== false) ds.parsing = false;   // required for {x,y,v}
+        // Explicit parsing keys for {x,y,v}
+        if (!ds.parsing || ds.parsing === false) {
+          ds.parsing = { xAxisKey: 'x', yAxisKey: 'y', key: 'v' };
+        }
 
         // width/height to size each cell into its category bucket (with a small gap)
         if (typeof ds.width !== 'function') {
@@ -91,10 +139,10 @@ function reviveFunctions(input) {
           };
         }
 
-        // default heat if none provided
+        // Default heat if none provided (does NOT depend on ctx.raw)
         if (typeof ds.backgroundColor !== 'function') {
           ds.backgroundColor = function(ctx) {
-            const v = Number(ctx.raw?.v ?? 0);
+            const v = getV(ctx.dataset, ctx.dataIndex);
             const t = Math.max(0, Math.min(1, (v + 100) / 200)); // [-100..100] → [0..1]
             function lerp(a,b,t){ return Math.round(a + (b-a)*t); }
             let r,g,b;
@@ -102,26 +150,59 @@ function reviveFunctions(input) {
             else { const k = (t - 0.5) / 0.5; r = lerp(255,0,k); g = 255; b = 0; }
             return `rgb(${r},${g},${b})`;
           };
+        } else {
+          // If user provided a function that expects ctx.raw.v, inject a safe raw
+          const old = ds.backgroundColor;
+          ds.backgroundColor = withRawShim(old, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
         }
 
         if (ds.borderWidth == null) ds.borderWidth = 1;
         if (ds.borderColor == null) ds.borderColor = 'rgba(255,255,255,0.75)';
         if (ds.borderRadius == null) ds.borderRadius = 6;
       }
+
+      // Also shim common plugin callbacks that often read ctx.raw.*
+      const dl = cfg.options?.plugins?.datalabels;
+      if (dl && typeof dl === 'object') {
+        if (typeof dl.formatter === 'function') {
+          dl.formatter = withRawShim(dl.formatter, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+        }
+        if (typeof dl.color === 'function') {
+          dl.color = withRawShim(dl.color, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+        }
+        if (typeof dl.backgroundColor === 'function') {
+          dl.backgroundColor = withRawShim(dl.backgroundColor, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+        }
+      }
+
+      const ttip = cfg.options?.plugins?.tooltip?.callbacks;
+      if (ttip && typeof ttip === 'object') {
+        if (typeof ttip.title === 'function') {
+          ttip.title = withRawShim(ttip.title, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+        }
+        if (typeof ttip.label === 'function') {
+          ttip.label = withRawShim(ttip.label, (ds,i) => ({ v: getV(ds,i), x: getX(ds,i), y: getY(ds,i) }));
+        }
+      }
     }
 
     // Build the chart
     const ctx = document.getElementById('chart').getContext('2d');
-    chart = new Chart(ctx, {
-      type: resolvedType,
-      data: cfg.data,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        ...cfg.options
-      }
-    });
+    let options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      ...cfg.options
+    };
+
+    const chartConfig = { type: resolvedType, data: cfg.data, options };
+
+    try {
+      chart = new Chart(ctx, chartConfig);
+    } catch (e) {
+      // Surface any init-time errors with path info
+      throw new Error(e?.message || String(e));
+    }
 
     // First layout after chart exists
     fitBoxHeight();
