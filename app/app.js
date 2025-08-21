@@ -1,6 +1,6 @@
 // Parse ?client=<slug>&chart=<type>
 const q = new URLSearchParams(location.search);
-const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar
+const chartType = q.get('chart') || 'donut';            // e.g., donut | line | bar | matrix
 const clientKey = q.get('client') || 'american-apparel';
 
 // client > chart taxonomy
@@ -21,6 +21,22 @@ function fitBoxHeight() {
 new ResizeObserver(fitBoxHeight).observe(boxEl);
 window.addEventListener('load', fitBoxHeight);
 
+// ---- helper: revive "function(...) { ... }" strings in JSON into real functions ----
+function reviveFunctions(input) {
+  if (Array.isArray(input)) return input.map(reviveFunctions);
+  if (input && typeof input === 'object') {
+    for (const k of Object.keys(input)) input[k] = reviveFunctions(input[k]);
+    return input;
+  }
+  if (typeof input === 'string') {
+    const s = input.trim();
+    if (s.startsWith('function')) {
+      try { return eval(`(${s})`); } catch { /* leave as-is on error */ }
+    }
+  }
+  return input;
+}
+
 // ------------------------------------------------
 
 (async function init(){
@@ -31,7 +47,9 @@ window.addEventListener('load', fitBoxHeight);
   try {
     const res = await fetch(cfgPath, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${cfgPath}`);
-    const cfg = await res.json();
+    // Parse JSON then revive any function strings (for matrix scriptables, tooltip callbacks, etc.)
+    let cfg = await res.json();
+    cfg = reviveFunctions(cfg);
 
     // Optional subtitle
     if (subWrap) {
@@ -43,11 +61,55 @@ window.addEventListener('load', fitBoxHeight);
     // Resolve chart type (donut → Chart.js "doughnut")
     const resolvedType = cfg.type || (chartType === 'donut' ? 'doughnut' : chartType);
 
+    // If type is matrix and width/height/background are not provided, give sensible defaults
+    if (resolvedType === 'matrix' && Array.isArray(cfg.data?.datasets)) {
+      for (const ds of cfg.data.datasets) {
+        // width/height to size each cell into its category bucket (with a small gap)
+        if (typeof ds.width !== 'function') {
+          ds.width = function(ctx) {
+            const x = ctx.chart.scales.x;
+            const w = Math.abs(x.getPixelForTick(1) - x.getPixelForTick(0));
+            return Math.max(4, w - 4);
+          };
+        }
+        if (typeof ds.height !== 'function') {
+          ds.height = function(ctx) {
+            const y = ctx.chart.scales.y;
+            const h = Math.abs(y.getPixelForTick(1) - y.getPixelForTick(0));
+            return Math.max(4, h - 4);
+          };
+        }
+        // very basic green-red heat if none provided
+        if (typeof ds.backgroundColor !== 'function') {
+          ds.backgroundColor = function(ctx) {
+            const v = Number(ctx.raw?.v ?? 0);
+            // map [-100..100] to 0..1
+            const t = Math.max(0, Math.min(1, (v + 100) / 200));
+            // simple lerp red → yellow → green
+            function lerp(a,b,t){ return Math.round(a + (b-a)*t); }
+            let r,g,b;
+            if (t < 0.5) { // red -> yellow
+              const k = t / 0.5;
+              r = 255;
+              g = lerp(0, 255, k);
+              b = 0;
+            } else { // yellow -> green
+              const k = (t - 0.5) / 0.5;
+              r = lerp(255, 0, k);
+              g = 255;
+              b = 0;
+            }
+            return `rgb(${r},${g},${b})`;
+          };
+        }
+      }
+    }
+
     // Build the chart
     const ctx = document.getElementById('chart').getContext('2d');
     chart = new Chart(ctx, {
       type: resolvedType,
-      data: cfg.data, // must be { labels, datasets: [...] }
+      data: cfg.data, // must be { labels, datasets: [...] } or matrix data objects
       options: {
         responsive: true,
         maintainAspectRatio: false,  // <-- let the .box control height
