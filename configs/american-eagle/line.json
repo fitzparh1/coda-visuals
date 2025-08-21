@@ -1,0 +1,30 @@
+{
+  "title": "Mentions Over Time",
+  "subtitle": "American Apparel (E-comm)",
+  "badge": "1",
+  "type": "line",
+  "data": {
+    "labels": ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+    "datasets": [{
+      "label": "Mentions",
+      "data": [120, 150, 90, 180, 210, 165, 190, 220, 175, 200, 230, 240],
+      "borderColor": "#1e88e5",
+      "backgroundColor": "rgba(30,136,229,0.15)",
+      "pointRadius": 2,
+      "tension": 0.25,
+      "fill": true
+    }]
+  },
+  "options": {
+    "responsive": true,
+    "maintainAspectRatio": false,
+    "interaction": { "mode": "index", "intersect": false },
+    "plugins": {
+      "legend": { "display": false }
+    },
+    "scales": {
+      "y": { "beginAtZero": true, "grid": { "display": true } },
+      "x": { "grid": { "display": false } }
+    }
+  }
+}
